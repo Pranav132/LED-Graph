@@ -1,0 +1,33 @@
+// PRISMA SCHEME
+datasource db {
+    provider = "mysql"
+    url      = env("DATABASE_URL")
+}
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+// User model - login with google
+model User {
+    id       Int      @id @default(autoincrement())
+    email    String   @unique
+    name     String?
+    googleId String?  @unique
+    // holds access tokens
+    tokens   String?  @db.VarChar(2048)
+    // relation to config for ownership
+    Config   Config[]
+}
+
+model Config {
+    id        Int      @id @default(autoincrement())
+    name      String?
+    // Holds config name now to access from uploads
+    config    Json?
+    checked   Boolean  @default(false)
+    validated Boolean  @default(false)
+    createdBy User     @relation(fields: [userID], references: [id])
+    userID    Int
+    date      DateTime @default(now())
+}

@@ -1,0 +1,6 @@
+# Environment
+
+DATABASE_URL=mysql://username:password@host:port/database_name?schema=PUBLIC
+GOOGLE_CLIENT_ID=59832829438-jbc4dgem65sjps8hq813vt98d7ui2mge.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=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
+SESSION_SECRET=7d77f882053d5e5f5a5e5d5b5c313233343536373839303132333435363738
