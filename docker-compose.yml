@@ -1,44 +1,40 @@
-version: '3.8'
+version: '3'
 
 services:
-  db:
-    image: mysql:5.7
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: 'MoSsxmHdG9mXVw'
-    ports:
-      - '3306:3306'
-    expose:
-      - '3306'
-    volumes:
-      - ./db/.docker/setup.sql:/docker-entrypoint-initdb.d/setup.sql
-      - db_data:/var/lib/mysql
-      
-  backend:
+  express-server:
     build:
       context: ./express-ts-server
       dockerfile: Dockerfile
-    restart: always
     ports:
-      - 4000:4000
+      - "4000:4000"
     environment:
-      DATABASE_URL: mysql://ledgraph-backend-user:emL6Z5bPXBx86F@db:3306/ledgraph
-      SESSION_SECRET: 7d77f882053d5e5f5a5e5d5b5c313233343536373839303132333435363738
+      DATABASE_URL: mysql://myuser:mypassword@mysql:3306/ledgraph
     depends_on:
-      - db
+      - mysql
+    command: /bin/sh -c "./wait-for-it.sh mysql:3306 --timeout=30 && sleep 5 && npx prisma generate && npx prisma migrate deploy && nodemon -L --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts"
+    volumes:
+      - ./express-ts-server:/usr/src/app
 
-  frontend:
+  react-client:
     build:
       context: ./react-ts-client
       dockerfile: Dockerfile
-    restart: always
     ports:
-      - '3000:3000'
-    depends_on:
-      - backend
+      - "3000:3000"
+    volumes:
+      - ./react-ts-client:/usr/src/app
+
+  mysql:
+    image: mysql:8.0
     environment:
-      REACT_APP_API_URL: http://backend:3000/api
-      CHOKIDAR_USEPOLLING: 'true'
+      MYSQL_ROOT_PASSWORD: mypassword
+      MYSQL_DATABASE: ledgraph
+      MYSQL_USER: myuser
+      MYSQL_PASSWORD: mypassword
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
 
 volumes:
-  db_data:
+  mysql-data:

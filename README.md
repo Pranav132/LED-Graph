@@ -1,6 +1,11 @@
-# LED-Graph
-A Visualizer for a controllable, customizable led node graph
+TODO:
 
-Run the server in express-ts-server. Then run the frontend in react-ts-client and navigate to the url to view.
+2. Connect to middleware - currently transfers through socket
+3. ReadMEs
 
-# Please see the report present for more details
+# HOW TO RUN
+
+- Install docker
+- Make sure cli is working as well
+- Make sure pwd is the root folder of this project
+- Run `docker-compose up --build`
