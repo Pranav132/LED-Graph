@@ -11,6 +11,12 @@ import multer, { Multer } from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { Socket } from 'net';
+import * as net from 'net';
+
+import { flattenLEDS, generateLedColorsWithVaryingBrightness, ledsToScaledWeights, convertAlgorithmToVisualization, numberOfSides, ledsPerSide, adjacencyList, edges } from './algorithmGeneration';
+
+// admin users authIDs
+const adminUsers = ["KRDSBfzWrbd4YNP361NU33WT3lJ3", "115055274696519228448"]
 
 // interface to get user details from request
 interface AuthenticatedRequest extends Request {
@@ -77,7 +83,7 @@ try{
             const email = profile.emails![0].value;
             
             // if ashokan email
-            if (email.endsWith('@ashoka.edu.in')) {
+            if (email.endsWith('@ashoka.edu.in') || email.endsWith('@alumni.ashoka.edu.in')) {
               
               // upsert User to MySQL database
               const user = await prisma.user.findUnique({ where: { email } });
@@ -116,6 +122,37 @@ catch(error) {
        console.log(error.message);
     }
 }
+
+function sendDataToPython(data: any) {
+  const client = new net.Socket();
+  client.connect(8333, '10.42.207.252', () => {
+    console.log('Connected to Python server');
+    const payload = JSON.stringify(data) + '\n';  // Add '\n' as a delimiter
+    client.write(payload);
+    client.end();
+    console.log('Sent data to Python server');
+  });
+
+  client.on('error', (err) => {
+    console.error('Connection to Python server failed:', err);
+  });
+}
+
+function sendDataToPythonTouch(data: any) {
+  const client = new net.Socket();
+  client.connect(8444, '10.42.207.252', () => {
+    console.log('Connected to Python server');
+    const payload = JSON.stringify(data) + '\n';  // Add '\n' as a delimiter
+    client.write(payload);
+    client.end();
+    console.log('Sent data to Python server');
+  });
+
+  client.on('error', (err) => {
+    console.error('Connection to Python server failed:', err);
+  });
+}
+
 
 // authenticate with Google
 app.get('/auth/google', passport.authenticate('google', { scope: ['email', 'profile'] }));
@@ -158,6 +195,35 @@ app.get('/configs/:authID', async (req, res) => {
     const configs = await prisma.config.findMany({
       where: {
         userID: user.id
+      }
+    });
+    return res.status(200).json(configs);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+})
+
+// Admin view - get all configs if user is admin
+app.get('/allConfigs/:authID', async (req, res) => {
+
+  try {
+    if(!adminUsers.includes(req.params.authID)){
+      console.log(req.params.authID)
+      console.log(adminUsers)
+      return res.status(401).json({ error: 'User is not admin' });
+    } 
+    const user = await prisma.user.findUnique({
+      where: {
+        googleId: req.params.authID
+      }
+    });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const configs = await prisma.config.findMany({
+      include: {
+        createdBy: true
       }
     });
     return res.status(200).json(configs);
@@ -323,6 +389,8 @@ app.get('/config/:id', async (req, res) => {
     // Send the file contents as JSON
     const fileContents = fs.readFileSync(filePath, 'utf-8');
     const fileJson = JSON.parse(fileContents);
+    sendDataToPython(fileJson);
+    console.log("sent")
     res.json(fileJson);
   }
   catch (error) {
@@ -369,6 +437,304 @@ app.get('/transfer/:id', async (req, res) => {
   });
 
 });
+
+// Route to update multiple configs
+app.post('/updateConfigs/:authID', async (req, res) => {
+  const updates = req.body;
+
+  if(!adminUsers.includes(req.params.authID)){
+    console.log(req.params.authID)
+    console.log(adminUsers)
+    return res.status(401).json({ error: 'User is not admin' });
+  } 
+
+  try {
+    for (const update of updates) {
+      let updateData = {};
+
+      if (update.validated === 'valid') {
+        updateData = { checked: true, validated: true };
+      } else if (update.validated === 'invalid') {
+        updateData = { checked: true, validated: false };
+      } else {
+        updateData = { checked: false, validated: false };
+      }
+
+      await prisma.config.update({
+        where: { id: update.id },
+        data: updateData,
+      });
+    }
+
+    res.status(200).json({ message: 'Configs updated successfully.' });
+    
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/dfs/:id', async (req, res) => {
+  
+  const nodeIDString: string = req.params.id;
+
+  // Try converting nodeID to a number
+  const nodeID: number = parseInt(nodeIDString, 10);
+  
+  // Check if the conversion was successful and if nodeID is within the range [0, 18]
+  if (isNaN(nodeID) || nodeID < 0 || nodeID > 18) {
+    return res.status(400).json({ error: 'Invalid node ID. ID must be a number between 0 and 18' });
+  }
+
+  let ledColors = generateLedColorsWithVaryingBrightness(numberOfSides, ledsPerSide);
+  const flatLedColors = flattenLEDS(ledColors);
+
+  const edgesWithWeights = ledsToScaledWeights(flatLedColors);
+
+  // Perform DFS on the graph using these weights
+  const dfsPath:any = [];
+  const visited = new Set();
+
+  const performDFS = (node:any) => {
+    visited.add(node);
+    const neighbors = adjacencyList[node] || [];
+    neighbors.sort((a:number, b:number) => edgesWithWeights[b] - edgesWithWeights[a]); // Sort neighbors by weight in descending order
+    
+    for (let neighbor of neighbors) {
+      const edge = Math.min(node, neighbor) + '-' + Math.max(node, neighbor); // Create a string key for the edge
+      if (!visited.has(neighbor)) {
+        dfsPath.push(edge);
+        performDFS(neighbor);
+      }
+    }
+  };
+
+  // Start DFS from node 0 (or any other starting node of your choice)
+  performDFS(nodeID);
+
+  ledColors = convertAlgorithmToVisualization(dfsPath, flatLedColors);
+
+  sendDataToPythonTouch(ledColors);
+
+  return res.json(ledColors);
+
+});
+
+app.get('/bfs/:id', async (req, res) => {
+  const nodeIDString: string = req.params.id;
+
+  // Try converting nodeID to a number
+  const nodeID: number = parseInt(nodeIDString, 10);
+  
+  // Check if the conversion was successful and if nodeID is within the range [0, 18]
+  if (isNaN(nodeID) || nodeID < 0 || nodeID > 18) {
+      return res.status(400).json({ error: 'Invalid node ID. ID must be a number between 0 and 18' });
+  }
+
+  let ledColors = generateLedColorsWithVaryingBrightness(numberOfSides, ledsPerSide);
+  const flatLedColors = flattenLEDS(ledColors);
+  const edgesWithWeights = ledsToScaledWeights(flatLedColors);
+
+  // Perform BFS on the graph using these weights
+  const bfsPath = [];
+  const visited = new Set();
+  const queue = [nodeID];
+
+  while (queue.length > 0) {
+      const node = queue.shift(); // Remove the first element from the queue
+      visited.add(node);
+
+      const neighbors = adjacencyList[node] || [];
+      neighbors.sort((a, b) => edgesWithWeights[b] - edgesWithWeights[a]); // Sort neighbors by weight in descending order
+
+      for (let neighbor of neighbors) {
+          const edge = Math.min(node, neighbor) + '-' + Math.max(node, neighbor); // Create a string key for the edge
+          if (!visited.has(neighbor)) {
+              bfsPath.push(edge);
+              visited.add(neighbor);
+              queue.push(neighbor);
+          }
+      }
+  }
+
+  ledColors = convertAlgorithmToVisualization(bfsPath, flatLedColors);
+
+  sendDataToPythonTouch(ledColors);
+
+  return res.json(ledColors);
+});
+app.get('/kruskal', async (req, res) => {
+  let ledColors = generateLedColorsWithVaryingBrightness(numberOfSides, ledsPerSide);
+  const flatLedColors = flattenLEDS(ledColors);
+  const edgesWithWeights = ledsToScaledWeights(flatLedColors);
+  const numberOfNodes = 18;
+
+  // Ensure the smaller number is always first in the key
+  const edgeNumberToNodePair:any = {};
+  Object.keys(edges).forEach(key => {
+    const nodes = edges[key].split('-').map(Number);
+    edgeNumberToNodePair[`${Math.min(...nodes)}-${Math.max(...nodes)}`] = parseInt(key);
+  });
+
+  // Sort the edges by their weight
+  const sortedEdges = Object.keys(edgesWithWeights).sort((a, b) => edgesWithWeights[a] - edgesWithWeights[b]).map(edgeNumber => edges[edgeNumber]);
+
+  const mstPath = []; // To store the edges in the MST
+  const parent = {}; // To keep track of the connected components
+
+  // Initialize the parent array for each node
+  for (let i = 0; i < numberOfNodes; i++) {
+      parent[i] = i;
+  }
+
+  // Function to find the root of a node
+  const find = (node) => {
+      while (parent[node] !== node) {
+          node = parent[node];
+      }
+      return node;
+  };
+
+  // Function to perform union of two sets
+  const union = (node1, node2) => {
+      const root1 = find(node1);
+      const root2 = find(node2);
+
+      if (root1 !== root2) {
+          parent[root1] = root2;
+      }
+  };
+
+  // Iterate through each edge and add it to the MST if it doesn't form a cycle
+  for (let edge of sortedEdges) {
+      const [node1, node2] = edge.split('-').map(Number);
+
+      if (find(node1) !== find(node2)) {
+          mstPath.push(edge);
+          union(node1, node2);
+      }
+  }
+
+  ledColors = convertAlgorithmToVisualization(mstPath, flatLedColors);
+
+  sendDataToPythonTouch(ledColors);
+
+  return res.json(ledColors);
+});
+
+app.get('/dijkstra/:start/:end', async (req, res) => {
+  // Extract start and end node IDs from the request parameters
+  const startNodeString = req.params.start;
+  const endNodeString = req.params.end;
+
+  // Convert node IDs to numbers
+  const startNode = parseInt(startNodeString, 10);
+  const endNode = parseInt(endNodeString, 10);
+
+  // Check if the conversion was successful and if node IDs are within the valid range
+  if (isNaN(startNode) || startNode < 0 || startNode > 18 ||
+      isNaN(endNode) || endNode < 0 || endNode > 18) {
+    return res.status(400).json({ error: 'Invalid node IDs. IDs must be numbers between 0 and 18' });
+  }
+
+  let ledColors = generateLedColorsWithVaryingBrightness(numberOfSides, ledsPerSide);
+  const flatLedColors = flattenLEDS(ledColors);
+  const edgesWithWeights = ledsToScaledWeights(flatLedColors);
+
+  // Perform Dijkstra's algorithm to find the shortest path
+  const dijkstraPath = performDijkstra(adjacencyList, edgesWithWeights, startNode, endNode);
+
+  // Convert the path from Dijkstra's algorithm into a visualization
+  ledColors = convertAlgorithmToVisualization(dijkstraPath, flatLedColors);
+
+  sendDataToPythonTouch(ledColors);
+
+  return res.json(ledColors);
+});
+
+// perform Dijkstra's algorithm
+function performDijkstra(adjacencyList, edgesWithWeights, startNode, endNode) {
+
+  // Ensure the smaller number is always first in the key
+  const edgeMapping:any = {};
+  Object.keys(edges).forEach(key => {
+    const nodes = edges[key].split('-').map(Number);
+    edgeMapping[`${Math.min(...nodes)}-${Math.max(...nodes)}`] = parseInt(key);
+  });
+  
+  const distances = {};
+  const previous = {};
+  const visited = new Set();
+
+  // Initialize all distances as Infinity and previous as null
+  for (let node in adjacencyList) {
+    distances[node] = Infinity;
+    previous[node] = null;
+  }
+
+  distances[startNode] = 0;
+
+  while (true) {
+    // Find the node with the smallest distance
+    let currentNode = null;
+    for (let node in distances) {
+      if (!visited.has(node) && (currentNode === null || distances[node] < distances[currentNode])) {
+        currentNode = node;
+      }
+    }
+
+    if (currentNode === null) {
+      break;
+    }
+
+    // Mark the current node as visited
+    visited.add(currentNode);
+
+    // Update distances and previous for each neighbor
+    const neighbors = adjacencyList[currentNode];
+
+    neighbors.forEach(neighbor => {
+      const edgePair = `${Math.min(currentNode, neighbor)}-${Math.max(currentNode, neighbor)}`;
+      const edgeNumber = edgeMapping[edgePair];
+      const weight = edgesWithWeights[edgeNumber];
+      const newDistance = distances[currentNode] + weight;
+
+      if (newDistance < distances[neighbor]) {
+        distances[neighbor] = newDistance;
+        previous[neighbor] = currentNode;
+      }
+    });
+  }
+
+  // Reconstruct the path
+  const path = [];
+  let current = endNode;
+  while (current !== null && previous[current] !== null) {
+    const previousNode = previous[current];
+    const edgePair = `${Math.min(previousNode, current)}-${Math.max(previousNode, current)}`;
+    path.unshift(edgePair);
+    current = previous[current];
+  }
+
+  return path;
+}
+
+app.get('/mapping', async (req, res) => {
+  try {
+    // Read canvas.json file
+    const filePath = path.join(__dirname, 'canvas.json');
+    const jsonData = fs.readFileSync(filePath, 'utf8');
+
+    // Parse JSON and send as response
+    const jsonContent = JSON.parse(jsonData);
+    sendDataToPythonTouch(jsonContent);
+    res.json(jsonContent);
+} catch (error) {
+    console.error('Error reading file:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+}  
+});
+
 
 app.listen(4000, () => {
   console.log('Server running on http://localhost:4000');

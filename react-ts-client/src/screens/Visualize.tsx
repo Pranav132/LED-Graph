@@ -776,12 +776,12 @@ export const FullLED = () => {
                   // TODO: Change this 
                   // Currently sending config through socket when loading this page
                   // Hits a backend route called transfer that sends the config through socket
-                  fetch("http://localhost:4000/transfer/" + authCtx.currentConfigID + "/",{
-                      method: 'GET',
-                      headers: {
-                          "Content-Type": "application/json",
-                      },
-                  })
+                  // fetch("http://localhost:4000/transfer/" + authCtx.currentConfigID + "/",{
+                  //     method: 'GET',
+                  //     headers: {
+                  //         "Content-Type": "application/json",
+                  //     },
+                  // })
                 }
                 else{
                     setConfig(null)

@@ -4,6 +4,8 @@ FROM node:16
 # Set the working directory inside the container
 WORKDIR /usr/src/app
 
+ENV PATH /usr/src/app/node_modules/.bin:$PATH
+
 # Copy package.json and yarn.lock files
 COPY package*.json yarn.lock ./
 
@@ -12,6 +14,12 @@ RUN yarn install
 
 # Install Prisma CLI for migrations
 RUN yarn global add prisma
+
+# Set permissions for global node modules
+RUN chown -R node:node /usr/local/share/.config/yarn/global/node_modules/@prisma
+
+# Switch to a non-root user (recommended for security)
+USER node
 
 # Install TypeScript globally
 RUN yarn global add typescript

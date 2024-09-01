@@ -1,0 +1,4 @@
+baseURL = "http://example.og/"
+languageCode = "en-US"
+title = "Project Hexagon"
+theme = "docsy"

@@ -34,10 +34,52 @@ export const Upload = (props:uploadProps) => {
   // to handle file uploads
   const [selectedFile, setSelectedFile] = useState<any>();
   const [isSelected, setIsSelected] = useState(false);
-  const changeHandler = (event:any) => {
-    setSelectedFile(event.target.files[0]);
+  
+  const changeHandler = (event: any) => {
+    const file = event.target.files[0];
+    if (!file) return; // Guard against no file selection
+  
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+  
+    if (fileExtension !== 'json') {
+      toast({
+        title: "Please upload a JSON file.",
+        position: "top",
+        status: "error",
+        duration: 3000,
+      });
+      setIsSelected(false);
+      return;
+    }
+
+    setSelectedFile(file);
     setIsSelected(true);
+  
+    // Read a portion of the file and try to parse as JSON
+    // const fileReader = new FileReader();
+  
+    // fileReader.onload = (e) => {
+    //   try {
+    //     const content = String(e.target?.result);
+    //     JSON.parse(content);
+  
+    //     setSelectedFile(file);
+    //     setIsSelected(true);
+    //   } catch (error) {
+    //     toast({
+    //       title: "Invalid JSON content.",
+    //       position: "top",
+    //       status: "error",
+    //       duration: 3000,
+    //     });
+    //     setIsSelected(false);
+    //   }
+    // };
+  
+    // fileReader.readAsText(file.slice(0, 1000)); // read the first 1000 bytes for quick validation
   };
+  
+  
 
   // send file to backend to finish upload
   const handleSubmission = () => {

@@ -25,6 +25,7 @@ import {
             <Link href={'/'}>About</Link>
             <Link href={'/CMS'}>CMS</Link>
             <Link href={'/visualize'}>Visualize</Link>
+            <Link href={'/algorithmselector'}>Algorithms</Link>
           </Stack>
           <Text>© LED Graph by Makerspace</Text>
         </Container>

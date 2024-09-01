@@ -120,5 +120,9 @@ import {
     {
       label: 'Visualize',
       href: '/visualize',
+    },
+    {
+      label: 'Algorithms',
+      href: '/algorithmselector',
     }
   ];

@@ -89,3 +89,22 @@ function generateHexArray(): string[] {
     console.log(data)
     return data;
   }
+
+export const getAlgorithm = (algo: string) => {
+  if (algo === "DFS"){
+    return "dfs"
+  }
+  if (algo === "BFS"){
+    return "bfs"
+  }
+  if (algo === "Dijkstra's"){
+    return "dijkstra"
+  }
+  if (algo === "Kruskal's"){
+    return "kruskal"
+  }
+  if (algo === "Mapping"){
+    return "mapping"
+  }
+  return ""
+}

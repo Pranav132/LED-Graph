@@ -16,7 +16,9 @@ const AuthContext = React.createContext({
     logout: () => {},
     configuration: {} as Record<string, any>,
     setCurrentConfig: (newConfig:any, newConfigID: number) => {},
-    currentConfigID: -1
+    currentConfigID: -1,
+    currentAlgorithm: "",
+    setAlgorithm: (algorithm:string) => {},
 });
 
 export const AuthContextProvider = (props:any) => {
@@ -29,10 +31,11 @@ export const AuthContextProvider = (props:any) => {
         localStorage.setItem('email', "");
         localStorage.setItem('config', JSON.stringify({}))
         localStorage.setItem("currentConfigID", "-1")
+        localStorage.setItem("currentAlgorithm", "");
     }
 
     // TODO: CHANGE THIS
-    const adminUsers = ["KRDSBfzWrbd4YNP361NU33WT3lJ3"]
+    const adminUsers = ["KRDSBfzWrbd4YNP361NU33WT3lJ3", "115055274696519228448"]
 
     // To give a user admin access
     const assignAdmin = (uid: string) => {
@@ -52,6 +55,7 @@ export const AuthContextProvider = (props:any) => {
     const initialEmail:string = localStorage.getItem("email")!;
     const currentConfig:any = localStorage.getItem("config")!;
     const ccID:any = localStorage.getItem("currentConfigID")
+    const currentAlgo:any = localStorage.getItem("currentAlgorithm");
 
     const [accessToken, setAccessToken] = useState<string>(initialAccessToken);
     const [authID, setAuthID] = useState<string>(initialAuthID);
@@ -60,6 +64,7 @@ export const AuthContextProvider = (props:any) => {
     const [admin, setAdmin] = useState<boolean>(assignAdmin(authID));
     const [config, setConfig] = useState<any>(JSON.parse(currentConfig));
     const [currentConfigurationID, setCurrentConfigurationID] = useState<number>(Number(ccID))
+    const [currentAlgorithm, setCurrentAlgorithm] = useState<any>(currentAlgo)
 
     // to check if user is logged in
     const userIsLoggedIn = () => {
@@ -102,6 +107,11 @@ export const AuthContextProvider = (props:any) => {
         localStorage.setItem("email", "");
     };
 
+    const algorithmHandler = (algorithm: string) => {
+        localStorage.setItem("currentAlgorithm", algorithm);
+        setCurrentAlgorithm(algorithm);
+    }
+
     // setting context details
     const contextValue = {
         authID: authID,
@@ -114,7 +124,9 @@ export const AuthContextProvider = (props:any) => {
         logout: logoutHandler,
         configuration: config,
         setCurrentConfig: configHandle,
-        currentConfigID: currentConfigurationID
+        currentConfigID: currentConfigurationID,
+        currentAlgorithm: currentAlgorithm,
+        setAlgorithm: algorithmHandler
     };
 
     return (

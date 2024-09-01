@@ -12,6 +12,7 @@ import { useContext } from 'react'
 import { AiOutlineUpload } from "react-icons/ai"
 import { VscJson } from 'react-icons/vsc'
 import { BsCheck2Circle } from 'react-icons/bs'
+import { ValidationTable } from '../Components/ValidationTable'
 // import { Editor } from '../Components/Editor'
 // import { AiOutlineEdit } from "react-icons/ai"
 
@@ -110,7 +111,7 @@ export const CMS = () => {
             )}
             {(authCtx.isAdmin && section === 2) && ( 
                 // TODO: Add Validate section
-                <h1>Validate</h1>
+                <ValidationTable setSection={setSection} />
             )}
              {/* {section === 3 && (
                 <Editor />

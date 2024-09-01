@@ -1,7 +1,8 @@
 TODO:
 
-2. Connect to middleware - currently transfers through socket
-3. ReadMEs
+1. Create Admin Validation Flow
+2. Validated items should be piped to a list
+3. When queue updated, fire webhook that middleware listens to and updates list so queue can be made
 
 # HOW TO RUN
 

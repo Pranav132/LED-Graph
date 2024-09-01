@@ -1,4 +1,5 @@
-version: '3'
+networks:
+  web-app-network:
 
 services:
   express-server:
@@ -12,6 +13,8 @@ services:
     depends_on:
       - mysql
     command: /bin/sh -c "./wait-for-it.sh mysql:3306 --timeout=30 && sleep 5 && npx prisma generate && npx prisma migrate deploy && nodemon -L --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts"
+    networks:
+      - web-app-network
     volumes:
       - ./express-ts-server:/usr/src/app
 
@@ -27,12 +30,15 @@ services:
   mysql:
     image: mysql:8.0
     environment:
+      
       MYSQL_ROOT_PASSWORD: mypassword
       MYSQL_DATABASE: ledgraph
       MYSQL_USER: myuser
       MYSQL_PASSWORD: mypassword
     ports:
-      - "3307:3306"
+      - "3306:3306"
+    networks:
+      - web-app-network
     volumes:
       - mysql-data:/var/lib/mysql
 
